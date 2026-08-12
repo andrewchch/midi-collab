@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIDI Collab Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>MIDI Collab Editor</h1>
+      <div id="toolbar">
+        <div class="toolbar-group">
+          <label>Bars:
+            <select id="barsSelect">
+              <option value="4">4</option>
+              <option value="8" selected>8</option>
+              <option value="16">16</option>
+              <option value="32">32</option>
+            </select>
+          </label>
+          <label>Note value:
+            <select id="noteDurationSelect">
+              <option value="0.125">1/8</option>
+              <option value="0.25">1/4</option>
+              <option value="0.5">1/2</option>
+              <option value="1" selected>Full (1)</option>
+            </select>
+          </label>
+        </div>
+        <div class="toolbar-group">
+          <label>BPM:
+            <input type="number" id="bpmInput" value="120" min="20" max="300" step="1" />
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="metronomeToggle" />
+            Metronome
+          </label>
+        </div>
+        <div class="toolbar-group">
+          <button id="playBtn">▶ Play</button>
+          <button id="stopBtn">■ Stop</button>
+          <button id="clearBtn">Clear</button>
+        </div>
+        <div class="toolbar-group">
+          <label class="file-label" title="Upload a MIDI file">
+            📂 Load MIDI
+            <input type="file" id="midiFileInput" accept=".mid,.midi" />
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <div id="editor-container">
+      <div id="piano-keys"></div>
+      <div id="grid-scroll">
+        <canvas id="grid-canvas"></canvas>
+      </div>
+    </div>
+
+    <div id="status-bar">
+      <span id="status-msg">Ready</span>
+      <span id="playhead-pos"></span>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
