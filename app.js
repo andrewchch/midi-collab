@@ -26,13 +26,6 @@ const ROW_H = 18;          // height of one pitch row
 const BEAT_W = 80;         // pixels per beat (quarter note)
 const BEATS_PER_BAR = 4;   // 4/4 time
 
-// Duration values (in beats)
-const DURATION_LABELS = {
-  0.5: '1/8',
-  1:   '1/4',
-  2:   '1/2',
-  4:   'Full',
-};
 
 // ---------------------------------------------------------------------------
 // State
@@ -337,11 +330,6 @@ barsSelect.addEventListener('change', () => {
   resizeCanvas();
 });
 
-noteDurationSelect.addEventListener('change', () => {
-  // Value stored as beats: 0.5=1/8, 1=1/4, 2=1/2, 4=full
-  noteDurationBeats = parseFloat(noteDurationSelect.value);
-});
-
 bpmInput.addEventListener('change', () => {
   bpm = Math.max(20, Math.min(300, parseInt(bpmInput.value, 10) || 120));
   bpmInput.value = bpm;
@@ -557,6 +545,7 @@ function parseMidiFile(buffer) {
   const division  = readUint16(); // ticks per quarter note (assume non-SMPTE)
 
   if (division & 0x8000) throw new Error('SMPTE timecode MIDI not supported');
+  if (format === 2) throw new Error('MIDI format 2 (multiple sequential patterns) is not supported');
 
   const ticksPerBeat = division;
   const allNoteEvents = []; // { tick, type, pitch, velocity }
