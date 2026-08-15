@@ -1,0 +1,140 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  background: #16213e;
+  padding: 8px 12px;
+  border-bottom: 2px solid #0f3460;
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f3460;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.toolbar-group label {
+  font-size: 0.82rem;
+  color: #a0b4c8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-group input[type="number"] {
+  width: 58px;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  color: #e0e0e0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+.toolbar-group select {
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  color: #e0e0e0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+.checkbox-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.file-label {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #a0b4c8;
+}
+
+.file-label input[type="file"] { display: none; }
+
+button {
+  background: #e94560;
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: bold;
+  transition: background 0.15s;
+}
+
+button:hover { background: #c73652; }
+
+button:disabled { background: #555; cursor: default; }
+
+#editor-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#piano-keys {
+  width: 48px;
+  flex-shrink: 0;
+  background: #16213e;
+  border-right: 2px solid #0f3460;
+  overflow: hidden;
+  position: relative;
+}
+
+#grid-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+}
+
+#grid-canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+#status-bar {
+  background: #16213e;
+  border-top: 1px solid #0f3460;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  color: #8899aa;
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
