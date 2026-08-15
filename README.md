@@ -11,25 +11,32 @@ This is a static web application with no build step required. It consists of thr
 
 ### Running Locally
 
-Serve the files with any static HTTP server. For example, using Python:
+The app includes a Python/Flask server (`server.py`) that serves the static files and can be extended with server-side functionality.
+
+Install dependencies and start the server:
 
 ```bash
-# Python 3
-python3 -m http.server 8080
+pip install -r requirements.txt
+python server.py
 ```
 
-Then open `http://localhost:8080` in your browser.
+Then open `http://localhost:5000` in your browser.
 
-Alternatively, using Node.js with the `serve` package:
+Alternatively, serve the files with any static HTTP server (no Python required):
 
 ```bash
+# Python 3 built-in
+python3 -m http.server 8080
+# or Node.js
 npx serve .
 ```
 
 ### Deploying to a Hosting Environment
 
-Upload all three files (`index.html`, `app.js`, `style.css`) to any static hosting provider. Popular options include:
+Deploy `server.py` and all static files to any Python-capable hosting platform:
 
-- **GitHub Pages** – push to a `gh-pages` branch or configure the repository's Pages settings to serve from the `main` branch root.
-- **Netlify / Vercel** – connect the repository and deploy; no build command is needed. Leave the build command blank and set the publish directory to `.` (the repository root).
-- **AWS S3 / CloudFront**, **Azure Static Web Apps**, or any web server (nginx, Apache) – copy the three files to the document root and serve them directly.
+- **Heroku / Render / Railway** – set the start command to `python server.py` (or use a `Procfile`: `web: python server.py`).
+- **AWS Elastic Beanstalk / Azure App Service / Google Cloud Run** – package the repository and configure the runtime to run `python server.py`.
+- **VPS / bare metal** – install dependencies with `pip install -r requirements.txt` and run `python server.py`. Use a reverse proxy (nginx, Apache) in front of the Flask server for production.
+
+For pure static hosting (without the Python server), upload `index.html`, `app.js`, and `style.css` to any static provider such as GitHub Pages, Netlify, or Vercel.
