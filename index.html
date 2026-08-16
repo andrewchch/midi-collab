@@ -49,6 +49,14 @@
             <input type="file" id="midiFileInput" accept=".mid,.midi" />
           </label>
         </div>
+        <div class="toolbar-group sync-group">
+          <label>Dataset:
+            <input type="text" id="datasetName" value="my-track" placeholder="dataset name" />
+          </label>
+          <button id="pushBtn" title="Push local notes to server">⬆ Push</button>
+          <button id="pullBtn" title="Pull merged notes from server">⬇ Pull</button>
+          <span id="syncStatus" class="sync-status"></span>
+        </div>
       </div>
     </header>
 

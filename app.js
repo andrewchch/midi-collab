@@ -302,6 +302,7 @@ canvas.addEventListener('click', (e) => {
   } else {
     addNote(pitch, snappedBeat, noteDurationBeats);
   }
+  saveNotes();
 });
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -316,6 +317,7 @@ canvas.addEventListener('contextmenu', (e) => {
   const pitch = rowToPitch(row);
   const rawBeat = xToBeat(x);
   removeNoteAt(pitch, rawBeat);
+  saveNotes();
 });
 
 // ---------------------------------------------------------------------------
@@ -343,6 +345,7 @@ clearBtn.addEventListener('click', () => {
   notes = [];
   setStatus('Cleared');
   render();
+  saveNotes();
 });
 
 // ---------------------------------------------------------------------------
@@ -700,3 +703,227 @@ mapDuration();
 
 resizeCanvas();
 setStatus('Click on the grid to add notes. Right-click to remove.');
+
+// ---------------------------------------------------------------------------
+// Persistence – localStorage
+// ---------------------------------------------------------------------------
+
+const STORAGE_KEY_PREFIX = 'midi-collab-';
+
+function saveLocal(datasetName) {
+  if (!datasetName) return;
+  const data = { notes, bpm, bars, noteDurationBeats, savedAt: Date.now() };
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + datasetName, JSON.stringify(data));
+  } catch (e) {
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function loadLocal(datasetName) {
+  if (!datasetName) return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + datasetName);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.warn('localStorage load failed:', e);
+    return null;
+  }
+}
+
+/** Convenience: save current notes under the active dataset name. */
+function saveNotes() {
+  saveLocal(datasetNameInput.value.trim());
+}
+
+// ---------------------------------------------------------------------------
+// Peer-change tracking
+// ---------------------------------------------------------------------------
+
+// Notes that were changed by a remote peer (highlighted differently on render)
+let peerAddedNotes = new Set(); // keys of notes added by peer
+let peerRemovedSlots = new Set(); // keys of slots removed by peer
+
+function peerKey(pitch, startBeat) {
+  return pitch + ':' + startBeat;
+}
+
+function applyPeerChanges(peerChanges) {
+  if (!peerChanges) return;
+  peerAddedNotes = new Set((peerChanges.added || []).map(n => peerKey(n.pitch, n.startBeat)));
+  peerRemovedSlots = new Set((peerChanges.removed || []).map(n => peerKey(n.pitch, n.startBeat)));
+}
+
+// ---------------------------------------------------------------------------
+// Sync UI elements
+// ---------------------------------------------------------------------------
+
+const datasetNameInput = document.getElementById('datasetName');
+const pushBtn          = document.getElementById('pushBtn');
+const pullBtn          = document.getElementById('pullBtn');
+const syncStatusEl     = document.getElementById('syncStatus');
+
+function setSyncStatus(msg, type) {
+  syncStatusEl.textContent = msg;
+  syncStatusEl.className = 'sync-status' + (type ? ' ' + type : '');
+}
+
+// ---------------------------------------------------------------------------
+// Render (extended) – highlight peer-changed notes
+// ---------------------------------------------------------------------------
+
+// Override render to highlight peer notes
+const _baseRender = render;
+render = function renderWithPeerHighlight(playheadBeat) {
+  _baseRender(playheadBeat);
+
+  const totalW = totalBeats() * BEAT_W;
+  const totalH = NUM_PITCHES * ROW_H;
+
+  // Highlight notes added by peer
+  for (const note of notes) {
+    const key = peerKey(note.pitch, note.startBeat);
+    if (!peerAddedNotes.has(key)) continue;
+    const row = pitchToRow(note.pitch);
+    const x = beatToX(note.startBeat);
+    const w = note.durationBeats * BEAT_W - 2;
+    const y = row * ROW_H + 1;
+    const h = ROW_H - 2;
+    ctx.strokeStyle = '#57e9a0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y, w, h, 3);
+    ctx.stroke();
+  }
+
+  // Show ghost markers for notes removed by peer
+  for (const key of peerRemovedSlots) {
+    const [pitchStr, beatStr] = key.split(':');
+    const pitch = parseInt(pitchStr, 10);
+    const startBeat = parseFloat(beatStr);
+    const row = pitchToRow(pitch);
+    if (row < 0 || row >= NUM_PITCHES) continue;
+    const x = beatToX(startBeat);
+    const y = row * ROW_H + 1;
+    const h = ROW_H - 2;
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y, noteDurationBeats * BEAT_W - 2, h, 3);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Push – send local notes to server
+// ---------------------------------------------------------------------------
+
+const DATASET_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+function validateDatasetName(name) {
+  return DATASET_NAME_RE.test(name);
+}
+
+async function pushToServer() {
+  const datasetName = datasetNameInput.value.trim();
+  if (!validateDatasetName(datasetName)) { setSyncStatus('Invalid dataset name', 'error'); return; }
+
+  setSyncStatus('Pushing…');
+  pushBtn.disabled = true;
+
+  // Snapshot local state before sending so we can compare on pull
+  const snapshot = notes.map(n => ({ ...n }));
+
+  try {
+    const res = await fetch('/api/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset: datasetName, notes: snapshot }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    // Update local notes to the merged result
+    notes = data.notes.map(n => ({ ...n, id: n.id !== undefined ? n.id : nextId() }));
+    applyPeerChanges(data.peer_changes);
+    saveLocal(datasetName);
+    render();
+    setSyncStatus('Pushed ✓', 'ok');
+    setStatus('Pushed ' + notes.length + ' notes (v' + data.version + ')');
+  } catch (err) {
+    setSyncStatus('Push failed', 'error');
+    setStatus('Push error: ' + err.message);
+    console.error(err);
+  } finally {
+    pushBtn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pull – fetch merged notes from server
+// ---------------------------------------------------------------------------
+
+async function pullFromServer() {
+  const datasetName = datasetNameInput.value.trim();
+  if (!validateDatasetName(datasetName)) { setSyncStatus('Invalid dataset name', 'error'); return; }
+
+  setSyncStatus('Pulling…');
+  pullBtn.disabled = true;
+
+  // Remember current local notes for diff
+  const preNotes = notes.map(n => ({ ...n }));
+
+  try {
+    const res = await fetch('/api/sync/pull?dataset=' + encodeURIComponent(datasetName));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    // Compute peer changes: what's different between our local state and server
+    const preIndex = {};
+    for (const n of preNotes) preIndex[peerKey(n.pitch, n.startBeat)] = n;
+
+    const serverIndex = {};
+    for (const n of data.notes) serverIndex[peerKey(n.pitch, n.startBeat)] = n;
+
+    const added = data.notes.filter(n => !preIndex[peerKey(n.pitch, n.startBeat)]);
+    const removed = preNotes.filter(n => !serverIndex[peerKey(n.pitch, n.startBeat)]);
+
+    notes = data.notes.map(n => ({ ...n, id: n.id !== undefined ? n.id : nextId() }));
+    applyPeerChanges({ added, removed });
+    saveLocal(datasetName);
+    render();
+    setSyncStatus('Pulled ✓', 'ok');
+    setStatus('Pulled ' + notes.length + ' notes (v' + data.version + ')');
+  } catch (err) {
+    setSyncStatus('Pull failed', 'error');
+    setStatus('Pull error: ' + err.message);
+    console.error(err);
+  } finally {
+    pullBtn.disabled = false;
+  }
+}
+
+pushBtn.addEventListener('click', pushToServer);
+pullBtn.addEventListener('click', pullFromServer);
+
+// ---------------------------------------------------------------------------
+// On load – restore from localStorage if a dataset is stored
+// ---------------------------------------------------------------------------
+
+(function restoreOnLoad() {
+  const datasetName = datasetNameInput.value.trim();
+  const saved = loadLocal(datasetName);
+  if (saved && Array.isArray(saved.notes) && saved.notes.length > 0) {
+    notes = saved.notes.map(n => ({ ...n, id: n.id !== undefined ? n.id : nextId() }));
+    if (saved.bpm) { bpm = saved.bpm; bpmInput.value = bpm; }
+    if (saved.bars) {
+      bars = saved.bars;
+      barsSelect.value = String(bars);
+      resizeCanvas();
+    }
+    render();
+    setStatus('Restored ' + notes.length + ' notes from local storage (' + datasetName + ')');
+  }
+})();

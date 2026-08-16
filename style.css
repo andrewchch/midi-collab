@@ -138,3 +138,28 @@ button:disabled { background: #555; cursor: default; }
   justify-content: space-between;
   flex-shrink: 0;
 }
+
+/* Sync controls */
+.sync-group input[type="text"] {
+  width: 110px;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  color: #e0e0e0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+#pushBtn { background: #2a7a4a; }
+#pushBtn:hover { background: #1f5c37; }
+#pullBtn { background: #2a5a9a; }
+#pullBtn:hover { background: #1f4374; }
+
+.sync-status {
+  font-size: 0.78rem;
+  color: #ffdd57;
+  min-width: 90px;
+}
+
+.sync-status.error { color: #e94560; }
+.sync-status.ok { color: #57e9a0; }
