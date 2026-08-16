@@ -741,8 +741,8 @@ function saveNotes() {
 // ---------------------------------------------------------------------------
 
 // Notes that were changed by a remote peer (highlighted differently on render)
-let peerAddedNotes = []; // notes added by peer (by slot key)
-let peerRemovedSlots = []; // { pitch, startBeat } slots removed by peer
+let peerAddedNotes = new Set(); // keys of notes added by peer
+let peerRemovedSlots = new Set(); // keys of slots removed by peer
 
 function peerKey(pitch, startBeat) {
   return pitch + ':' + startBeat;
@@ -750,8 +750,8 @@ function peerKey(pitch, startBeat) {
 
 function applyPeerChanges(peerChanges) {
   if (!peerChanges) return;
-  peerAddedNotes = (peerChanges.added || []).map(n => peerKey(n.pitch, n.startBeat));
-  peerRemovedSlots = (peerChanges.removed || []).map(n => ({ pitch: n.pitch, startBeat: n.startBeat }));
+  peerAddedNotes = new Set((peerChanges.added || []).map(n => peerKey(n.pitch, n.startBeat)));
+  peerRemovedSlots = new Set((peerChanges.removed || []).map(n => peerKey(n.pitch, n.startBeat)));
 }
 
 // ---------------------------------------------------------------------------
@@ -783,7 +783,7 @@ render = function renderWithPeerHighlight(playheadBeat) {
   // Highlight notes added by peer
   for (const note of notes) {
     const key = peerKey(note.pitch, note.startBeat);
-    if (!peerAddedNotes.includes(key)) continue;
+    if (!peerAddedNotes.has(key)) continue;
     const row = pitchToRow(note.pitch);
     const x = beatToX(note.startBeat);
     const w = note.durationBeats * BEAT_W - 2;
@@ -797,10 +797,13 @@ render = function renderWithPeerHighlight(playheadBeat) {
   }
 
   // Show ghost markers for notes removed by peer
-  for (const slot of peerRemovedSlots) {
-    const row = pitchToRow(slot.pitch);
+  for (const key of peerRemovedSlots) {
+    const [pitchStr, beatStr] = key.split(':');
+    const pitch = parseInt(pitchStr, 10);
+    const startBeat = parseFloat(beatStr);
+    const row = pitchToRow(pitch);
     if (row < 0 || row >= NUM_PITCHES) continue;
-    const x = beatToX(slot.startBeat);
+    const x = beatToX(startBeat);
     const y = row * ROW_H + 1;
     const h = ROW_H - 2;
     ctx.strokeStyle = '#e94560';
@@ -817,9 +820,15 @@ render = function renderWithPeerHighlight(playheadBeat) {
 // Push – send local notes to server
 // ---------------------------------------------------------------------------
 
+const DATASET_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+function validateDatasetName(name) {
+  return DATASET_NAME_RE.test(name);
+}
+
 async function pushToServer() {
   const datasetName = datasetNameInput.value.trim();
-  if (!datasetName) { setSyncStatus('Enter a dataset name', 'error'); return; }
+  if (!validateDatasetName(datasetName)) { setSyncStatus('Invalid dataset name', 'error'); return; }
 
   setSyncStatus('Pushing…');
   pushBtn.disabled = true;
@@ -858,7 +867,7 @@ async function pushToServer() {
 
 async function pullFromServer() {
   const datasetName = datasetNameInput.value.trim();
-  if (!datasetName) { setSyncStatus('Enter a dataset name', 'error'); return; }
+  if (!validateDatasetName(datasetName)) { setSyncStatus('Invalid dataset name', 'error'); return; }
 
   setSyncStatus('Pulling…');
   pullBtn.disabled = true;

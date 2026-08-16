@@ -27,11 +27,6 @@ def static_files(filename):
 # Sync API
 # ---------------------------------------------------------------------------
 
-def _note_key(note):
-    """Canonical identity key for a note."""
-    return (note["pitch"], note["startBeat"], note["durationBeats"])
-
-
 def _merge_notes(base, incoming):
     """
     Three-way merge strategy (last-write-wins per unique slot):
